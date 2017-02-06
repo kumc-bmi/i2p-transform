@@ -1766,7 +1766,7 @@ inner join encounter enc on enc.encounterid = m.encounter_Num
         inner join encounter enc on enc.patid = basis.patient_num and enc.encounterid = basis.encounter_Num
      join pcornet_med basiscode 
         on basis.modifier_cd = basiscode.c_basecode
-        and basiscode.c_fullname='\PCORI_MOD\RX_BASIS\DI\') basis
+        and basiscode.c_fullname like '\PCORI_MOD\RX_BASIS\DI\%') basis
     on m.encounter_num = basis.encounter_num
     and m.concept_cd = basis.concept_Cd 
 
