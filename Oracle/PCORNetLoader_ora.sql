@@ -1726,6 +1726,9 @@ begin
 
 PMN_DROPSQL('drop index dispensing_patid');
 
+/* The supply table is already created in the PCORNetPrescribing procedure
+   and may be causing the ORA-04065 error
+
 PMN_DROPSQL('DROP TABLE supply');
 sqltext := 'create table supply as '||
 '(select nval_num,encounter_num,concept_cd from i2b2fact supply '||
@@ -1734,7 +1737,7 @@ sqltext := 'create table supply as '||
 '        on supply.modifier_cd = supplycode.c_basecode '||
 '        and supplycode.c_fullname like ''\PCORI_MOD\RX_DAYS_SUPPLY\'' ) ';
 PMN_EXECUATESQL(sqltext);
-
+*/
 
 PMN_DROPSQL('DROP TABLE amount');
 sqltext := 'create table amount as '||
@@ -1743,7 +1746,7 @@ sqltext := 'create table amount as '||
 '        on amount.modifier_cd = amountcode.c_basecode '||
 '        and amountcode.c_fullname like ''\PCORI_MOD\RX_QUANTITY\'') ';
 PMN_EXECUATESQL(sqltext);
-        
+
 -- insert data with outer joins to ensure all records are included even if some data elements are missing
 
 insert into dispensing (
