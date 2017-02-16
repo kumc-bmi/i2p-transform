@@ -1726,18 +1726,14 @@ begin
 
 PMN_DROPSQL('drop index dispensing_patid');
 
-/* The supply table is already created in the PCORNetPrescribing procedure
-   and may be causing the ORA-04065 error
-
-PMN_DROPSQL('DROP TABLE supply');
-sqltext := 'create table supply as '||
-'(select nval_num,encounter_num,concept_cd from i2b2fact supply '||
-'        inner join encounter enc on enc.patid = supply.patient_num and enc.encounterid = supply.encounter_Num '||
+PMN_DROPSQL('DROP TABLE disp_supply');
+sqltext := 'create table disp_supply as '||
+'(select nval_num,encounter_num,concept_cd from i2b2fact disp_supply '||
+'        inner join encounter enc on enc.patid = disp_supply.patient_num and enc.encounterid = disp_supply.encounter_Num '||
 '      join pcornet_med supplycode  '||
-'        on supply.modifier_cd = supplycode.c_basecode '||
+'        on disp_supply.modifier_cd = supplycode.c_basecode '||
 '        and supplycode.c_fullname like ''\PCORI_MOD\RX_DAYS_SUPPLY\'' ) ';
 PMN_EXECUATESQL(sqltext);
-*/
 
 PMN_DROPSQL('DROP TABLE amount');
 sqltext := 'create table amount as '||
@@ -1759,7 +1755,7 @@ insert into dispensing (
 --    ,RAW_NDC
 )
 select  m.patient_num, null,m.start_date, NVL(mo.pcori_ndc,'NA')
-    ,max(supply.nval_num) sup, max(amount.nval_num) amt 
+    ,max(disp_supply.nval_num) sup, max(amount.nval_num) amt 
 from i2b2fact m inner join pcornet_med mo
 on m.concept_cd = mo.c_basecode
 inner join encounter enc on enc.encounterid = m.encounter_Num
@@ -1773,9 +1769,9 @@ inner join encounter enc on enc.encounterid = m.encounter_Num
     on m.encounter_num = basis.encounter_num
     and m.concept_cd = basis.concept_Cd 
 
-    left join  supply
-    on m.encounter_num = supply.encounter_num
-    and m.concept_cd = supply.concept_Cd
+    left join  disp_supply
+    on m.encounter_num = disp_supply.encounter_num
+    and m.concept_cd = disp_supply.concept_Cd
 
 
     left join  amount
