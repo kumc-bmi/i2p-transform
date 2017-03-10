@@ -1708,12 +1708,23 @@ Also, Error(57,57): PL/SQL: ORA-00904: "MO"."PCORI_NDC": invalid identifier
 */
 whenever sqlerror continue;
 drop table amount;
+drop table disp_supply;
 
 create table amount(
   nval_num number(18,5), 
 	encounter_num number(38,0), 
 	concept_cd varchar2(50 byte)
-  ); 
+  );
+
+create table disp_supply(
+  nval_num number(18,5), 
+  encounter_num number(38,0), 
+  concept_cd varchar2(50 byte),
+  instance_num number(18,0),
+  start_date date,
+  provider_id varchar2(50 byte),
+  modifier_cd varchar2(100 byte)
+  );
 
 alter table "&&i2b2_meta_schema".pcornet_med add (
   pcori_ndc varchar2(1000) -- arbitrary
