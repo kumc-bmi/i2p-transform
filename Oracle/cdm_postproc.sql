@@ -52,3 +52,9 @@ set pres.rx_days_supply = (
 where pres.rx_frequency=freq.rx_frequency
   and pres.rx_quantity is not null
 );
+
+/* Removed bad NDC code which make their way in from the source system
+   (i.e 00000000000 and 99999999999) */
+delete from dispensing
+where ndc in ('00000000000', '99999999999')
+;
