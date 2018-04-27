@@ -1,5 +1,7 @@
 /** prescribing - create and populate the prescribing table.
 */
+alter session set current_schema = pcornet_cdm;  -- @@@@
+
 BEGIN
 PMN_DROPSQL('DROP TABLE prescribing');
 END;
@@ -32,97 +34,132 @@ BEGIN
 PMN_DROPSQL('DROP sequence  prescribing_seq');
 END;
 /
-create sequence  prescribing_seq
+create sequence  prescribing_seq cache 2000
 /
 
-create or replace trigger prescribing_trg
-before insert on prescribing
-for each row
-begin
-  select prescribing_seq.nextval into :new.PRESCRIBINGID from dual;
-end;
-/
 
-BEGIN
-PMN_DROPSQL('DROP TABLE basis');
-END;
-/
+/** prescribing_key -- one row per order (inpatient or outpatient)
 
-CREATE TABLE BASIS  (
-	PCORI_BASECODE	VARCHAR2(50) NULL,
-	C_FULLNAME    	VARCHAR2(700) NOT NULL,
-	INSTANCE_NUM  	NUMBER(18) NOT NULL,
-	START_DATE    	DATE NOT NULL,
-	PROVIDER_ID   	VARCHAR2(50) NOT NULL,
-	CONCEPT_CD    	VARCHAR2(50) NOT NULL,
-	ENCOUNTER_NUM 	NUMBER(38) NOT NULL,
-	MODIFIER_CD   	VARCHAR2(100) NOT NULL
-	)
-/
+Design note on modifiers:
+create or replace view rx_mod_design as
+  select c_basecode
+  from blueheronmetadata.pcornet_med
+  -- TODO: fix pcornet_mapping.csv
+  where c_fullname like '\PCORI_MOD\RX_BASIS\PR\_%'
+  and c_basecode not in ('MedObs:PRN',   -- that's a supplementary flag, not a basis
+                         'MedObs:Other'  -- that's as opposed to Historical; not same category as Inpatient, Outpatient
+                         )
+  and c_basecode not like 'RX_BASIS:%'
+;
 
-BEGIN
-PMN_DROPSQL('DROP TABLE freq');
-END;
-/
+select case when (
+  select listagg(c_basecode, ',') within group (order by c_basecode) modifiers
+  from rx_mod_design
+  ) = 'MedObs:Inpatient,MedObs:Outpatient'
+then 1 -- pass
+else 1/0 -- fail
+end modifiers_as_expected
+from dual
+;
+*/
+drop table prescribing_key;  -- @@@
 
-CREATE TABLE FREQ  (
-	PCORI_BASECODE	VARCHAR2(50) NULL,
-	INSTANCE_NUM  	NUMBER(18) NOT NULL,
-	START_DATE    	DATE NOT NULL,
-	PROVIDER_ID   	VARCHAR2(50) NOT NULL,
-	CONCEPT_CD    	VARCHAR2(50) NOT NULL,
-	ENCOUNTER_NUM 	NUMBER(38) NOT NULL,
-	MODIFIER_CD   	VARCHAR2(100) NOT NULL
-	)
-/
+create table prescribing_key as
+select prescribing_seq.nextval prescribingid
+, instance_num
+, patient_num
+, encounter_num
+, provider_id
+, start_date
+, end_date
+, concept_cd
+, modifier_cd
+from blueherondata.observation_fact rx
+where rx.modifier_cd in ('MedObs:Inpatient', 'MedObs:Outpatient') ;
 
-BEGIN
-PMN_DROPSQL('DROP TABLE quantity');
-END;
-/
+select * from prescribing_key;  -- @@@
+--     23,445 in STAGEDEV
+-- 39,154,835 in BHERONA1@@
 
-CREATE TABLE QUANTITY  (
-	NVAL_NUM     	NUMBER(18,5) NULL,
-	INSTANCE_NUM 	NUMBER(18) NOT NULL,
-	START_DATE   	DATE NOT NULL,
-	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
-	CONCEPT_CD   	VARCHAR2(50) NOT NULL,
-	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
-	MODIFIER_CD  	VARCHAR2(100) NOT NULL
-	)
-/
+create unique index prescribing_key_ix on prescribing_key (concept_cd, instance_num);
 
-BEGIN
-PMN_DROPSQL('DROP TABLE refills');
-END;
-/
+/** prescribing_w_cui
 
-CREATE TABLE REFILLS  (
-	NVAL_NUM     	NUMBER(18,5) NULL,
-	INSTANCE_NUM 	NUMBER(18) NOT NULL,
-	START_DATE   	DATE NOT NULL,
-	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
-	CONCEPT_CD   	VARCHAR2(50) NOT NULL,
-	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
-	MODIFIER_CD  	VARCHAR2(100) NOT NULL
-	)
-/
+take care with cardinalities...
 
-BEGIN
-PMN_DROPSQL('DROP TABLE supply');
-END;
-/
+select count(distinct c_name), c_basecode
+from pcornet_med
+group by c_basecode, c_name
+having count(distinct c_name) > 1
+order by c_basecode
+;
+*/
+create table prescribing_w_cui as
+select rx.*
+, mo.pcori_cui rxnorm_cui
+, substr(mo.c_basecode, 1, 50) raw_rxnorm_cui
+, substr(mo.c_name, 1, 50) raw_rx_med_name
+from prescribing_key rx
+join
+  (select distinct c_basecode
+  , c_name
+  , pcori_cui
+  from pcornet_med
+  ) mo
+on rx.concept_cd = mo.c_basecode ;
 
-CREATE TABLE SUPPLY  (
-	NVAL_NUM     	NUMBER(18,5) NULL,
-	INSTANCE_NUM 	NUMBER(18) NOT NULL,
-	START_DATE   	DATE NOT NULL,
-	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
-	CONCEPT_CD   	VARCHAR2(50) NOT NULL,
-	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
-	MODIFIER_CD  	VARCHAR2(100) NOT NULL
-	)
-/
+
+drop table prescribing_w_refills;
+
+/** prescribing_w_refills
+This join isn't guaranteed not to introduce more rows,
+but at least one measurement showed it does not.
+ */
+create table prescribing_w_refills as
+select rx.*
+, refills.nval_num rx_refills
+from prescribing_w_cui rx
+left join
+  (select instance_num
+  , concept_cd
+  , nval_num
+  from blueherondata.observation_fact
+  where modifier_cd = 'RX_REFILLS'
+    /* aka:
+    select c_basecode from pcornet_med refillscode
+    where refillscode.c_fullname = '\PCORI_MOD\RX_REFILLS\' */
+  ) refills on refills.instance_num = rx.instance_num and refills.concept_cd = rx.concept_cd;
+select * from prescribing_w_refills;
+
+
+drop table prescribing; -- wrap@@
+
+create table prescribing as
+select rx.prescribingid
+, rx.patient_num patid
+, rx.encounter_num encounterid
+, provider_id rx_providerid
+, trunc(start_date) rx_order_date
+, to_char(rx.start_date, 'HH24:MI') rx_order_time
+, trunc(start_date) rx_start_date
+, trunc(end_date) rx_end_date
+-- RX_QUANTITY
+, 'NI' RX_QUANTITY_UNIT
+, rx.rx_refills
+-- RX_DAYS_SUPPLY number (18,5) NULL,
+--	RX_FREQUENCY varchar(2) NULL,
+, decode(rx.modifier_cd, 'MedObs:Inpatient', '01', 'MedObs:Outpatient', '02') rx_basis
+, rx.rxnorm_cui
+, rx.raw_rx_med_name
+-- RAW_RX_FREQUENCY
+-- RAW_RX_QUANTITY
+-- RAW_RX_NDC
+, rx.RAW_RXNORM_CUI
+/* ISSUE: HERON should have an actual order time.
+   idea: store real difference between order date start data, possibly using the update date */
+from prescribing_w_refills rx
+;
+
 begin
 PMN_DROPSQL('DROP TABLE prescribing_transfer');
 end;
