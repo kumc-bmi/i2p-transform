@@ -506,8 +506,8 @@ PMN_DROPSQL('drop index vital_idx');
 execute immediate 'truncate table vital';
 
 -- jgk: I took out admit_date - it doesn't appear in the scheme. Now in SQLServer format - date, substring, name on inner select, no nested with. Added modifiers and now use only pathnames, not codes.
-insert into vital(patid, encounterid, measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,tobacco_type)
-select patid, encounterid, to_date(measure_date,'rrrr-mm-dd') measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,
+insert /*+ PARALLEL */  into vital(patid, encounterid, measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,tobacco_type)
+select /*+ PARALLEL */ patid, encounterid, to_date(measure_date,'rrrr-mm-dd') measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,
 case when tobacco in ('02','03','04') then -- no tobacco
     case when smoking in ('03','04') then '04' -- no smoking
         when smoking in ('01','02','07','08') then '01' -- smoking
@@ -518,13 +518,13 @@ case when tobacco in ('02','03','04') then -- no tobacco
         else '05' end
  else 'NI' end tobacco_type 
 from
-(select patid, encounterid, measure_date, measure_time, NVL(max(vital_source),'HC') vital_source, -- jgk: not in the spec, so I took it out  admit_date,
+(select /*+ PARALLEL */  patid, encounterid, measure_date, measure_time, NVL(max(vital_source),'HC') vital_source, -- jgk: not in the spec, so I took it out  admit_date,
 max(ht) ht, max(wt) wt, max(diastolic) diastolic, max(systolic) systolic, 
 max(original_bmi) original_bmi, NVL(max(bp_position),'NI') bp_position,
 NVL(NVL(max(smoking),max(unk_tobacco)),'NI') smoking,
 NVL(NVL(max(tobacco),max(unk_tobacco)),'NI') tobacco
 from (
-  select vit.patid, vit.encounterid, vit.measure_date, vit.measure_time 
+  select /*+ PARALLEL */  vit.patid, vit.encounterid, vit.measure_date, vit.measure_time 
     , case when vit.pcori_code like '\PCORI\VITAL\HT%' then vit.nval_num else null end ht
     , case when vit.pcori_code like '\PCORI\VITAL\WT%' then vit.nval_num else null end wt
     , case when vit.pcori_code like '\PCORI\VITAL\BP\DIASTOLIC%' then vit.nval_num else null end diastolic
@@ -596,10 +596,10 @@ PMN_DROPSQL('drop index enrollment_idx');
 
 execute immediate 'truncate table enrollment';
 
-INSERT INTO enrollment(PATID, ENR_START_DATE, ENR_END_DATE, CHART, ENR_BASIS) 
+INSERT  /*+ PARALLEL */ INTO enrollment(PATID, ENR_START_DATE, ENR_END_DATE, CHART, ENR_BASIS) 
 with pats_delta as (
   -- If only one visit, visit_delta_days will be 0
-  select patient_num, max(start_date) - min(start_date) visit_delta_days
+  select  /*+ PARALLEL */ patient_num, max(start_date) - min(start_date) visit_delta_days
   from i2b2visit
   where start_date > add_months(sysdate, -&&enrollment_months_back)
   group by patient_num
@@ -609,7 +609,7 @@ enrolled as (
   from pats_delta
   where visit_delta_days > 30
   )
-select 
+select  /*+ PARALLEL */ 
   visit.patient_num patid, min(visit.start_date) enr_start_date, 
   max(visit.start_date) enr_end_date, 'Y' chart, 'A' enr_basis
 from enrolled enr
@@ -634,8 +634,8 @@ execute immediate 'truncate table priority';
 execute immediate 'truncate table location';
 execute immediate 'truncate table lab_result_cm';
 
-insert into priority
-select distinct patient_num, encounter_num, provider_id, concept_cd, start_date, lsource.pcori_basecode PRIORITY
+insert  /*+ PARALLEL */ into priority
+select  /*+ PARALLEL */ distinct patient_num, encounter_num, provider_id, concept_cd, start_date, lsource.pcori_basecode PRIORITY
 from i2b2fact
 inner join encounter enc on enc.patid = i2b2fact.patient_num and enc.encounterid = i2b2fact.encounter_Num
 inner join pcornet_lab lsource on i2b2fact.modifier_cd =lsource.c_basecode
@@ -644,8 +644,8 @@ where c_fullname LIKE '\PCORI_MOD\PRIORITY\%';
 execute immediate 'create index priority_idx on priority (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('PRIORITY');
 
-insert into location
-select distinct patient_num, encounter_num, provider_id, concept_cd, start_date, lsource.pcori_basecode  RESULT_LOC
+insert  /*+ PARALLEL */ into location
+select  /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, lsource.pcori_basecode  RESULT_LOC
 from i2b2fact
 inner join encounter enc on enc.patid = i2b2fact.patient_num and enc.encounterid = i2b2fact.encounter_Num
 inner join pcornet_lab lsource on i2b2fact.modifier_cd =lsource.c_basecode
@@ -654,7 +654,7 @@ where c_fullname LIKE '\PCORI_MOD\RESULT_LOC\%';
 execute immediate 'create index location_idx on location (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('LOCATION');
 
-INSERT INTO lab_result_cm
+INSERT /*+ PARALLEL */ INTO  lab_result_cm
       (PATID
       ,ENCOUNTERID
       ,LAB_NAME
@@ -686,7 +686,7 @@ INSERT INTO lab_result_cm
       ,RAW_ORDER_DEPT
       ,RAW_FACILITY_CODE)
 
-SELECT DISTINCT  M.patient_num patid,
+SELECT /*+ PARALLEL */ DISTINCT  M.patient_num patid,
 M.encounter_num encounterid,
 CASE WHEN ont_parent.C_BASECODE LIKE 'LAB_NAME%' then SUBSTR (ont_parent.c_basecode,10, 10) ELSE 'UN' END LAB_NAME,
 CASE WHEN lab.pcori_specimen_source like '%or SR_PLS' THEN 'SR_PLS' WHEN lab.pcori_specimen_source is null then 'NI' ELSE lab.pcori_specimen_source END specimen_source, -- (Better way would be to fix the column in the ontology but this will work)
@@ -823,8 +823,8 @@ execute immediate 'truncate table quantity';
 execute immediate 'truncate table refills';
 execute immediate 'truncate table supply';
 
-insert into basis
-select pcori_basecode,c_fullname,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact basis
+insert /*+ PARALLEL */ into basis
+select /*+ PARALLEL */ pcori_basecode,c_fullname,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact basis
         inner join encounter enc on enc.patid = basis.patient_num and enc.encounterid = basis.encounter_Num
      join pcornet_med basiscode
         on basis.modifier_cd = basiscode.c_basecode
@@ -833,8 +833,8 @@ select pcori_basecode,c_fullname,instance_num,start_date,provider_id,concept_cd,
 execute immediate 'create unique index basis_idx on basis (instance_num, start_date, provider_id, concept_cd, encounter_num, modifier_cd)';
 GATHER_TABLE_STATS('BASIS');
 
-insert into freq
-select pcori_basecode,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact freq
+insert /*+ PARALLEL */ into freq
+select /*+ PARALLEL */ pcori_basecode,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact freq
         inner join encounter enc on enc.patid = freq.patient_num and enc.encounterid = freq.encounter_Num
      join pcornet_med freqcode
         on freq.modifier_cd = freqcode.c_basecode
@@ -843,8 +843,8 @@ select pcori_basecode,instance_num,start_date,provider_id,concept_cd,encounter_n
 execute immediate 'create unique index freq_idx on freq (instance_num, start_date, provider_id, concept_cd, encounter_num, modifier_cd)';
 GATHER_TABLE_STATS('FREQ');
 
-insert into quantity
-select nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact quantity
+insert /*+ PARALLEL */into quantity
+select /*+ PARALLEL */ nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact quantity
         inner join encounter enc on enc.patid = quantity.patient_num and enc.encounterid = quantity.encounter_Num
      join pcornet_med quantitycode
         on quantity.modifier_cd = quantitycode.c_basecode
@@ -853,8 +853,8 @@ select nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,mod
 execute immediate 'create unique index quantity_idx on quantity (instance_num, start_date, provider_id, concept_cd, encounter_num, modifier_cd)';
 GATHER_TABLE_STATS('QUANTITY');
         
-insert into refills
-select nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact refills
+insert /*+ PARALLEL */ into refills
+select /*+ PARALLEL */ nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact refills
         inner join encounter enc on enc.patid = refills.patient_num and enc.encounterid = refills.encounter_Num
      join pcornet_med refillscode
         on refills.modifier_cd = refillscode.c_basecode
@@ -863,8 +863,8 @@ select nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,mod
 execute immediate 'create unique index refills_idx on refills (instance_num, start_date, provider_id, concept_cd, encounter_num, modifier_cd)';
 GATHER_TABLE_STATS('REFILLS');
         
-insert into supply
-select nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact supply
+insert /*+ PARALLEL */ into supply
+select /*+ PARALLEL */ nval_num,instance_num,start_date,provider_id,concept_cd,encounter_num,modifier_cd from i2b2medfact supply
         inner join encounter enc on enc.patid = supply.patient_num and enc.encounterid = supply.encounter_Num
      join pcornet_med supplycode
         on supply.modifier_cd = supplycode.c_basecode
@@ -874,7 +874,7 @@ execute immediate 'create unique index supply_idx on supply (instance_num, start
 GATHER_TABLE_STATS('SUPPLY');
 
 -- insert data with outer joins to ensure all records are included even if some data elements are missing
-insert into prescribing (
+insert /*+ PARALLEL */ into prescribing (
 	PATID
     ,encounterid
     ,RX_PROVIDERID
@@ -893,7 +893,7 @@ insert into prescribing (
 --    ,RAW_RX_FREQUENCY,
     ,RAW_RXNORM_CUI
 )
-select distinct  m.patient_num, m.Encounter_Num,m.provider_id,  m.start_date order_date,  to_char(m.start_date,'HH24:MI'), m.start_date start_date, m.end_date, mo.pcori_cui
+select /*+ PARALLEL */ distinct  m.patient_num, m.Encounter_Num,m.provider_id,  m.start_date order_date,  to_char(m.start_date,'HH24:MI'), m.start_date start_date, m.end_date, mo.pcori_cui
     ,quantity.nval_num quantity, 'NI' rx_quantity_unit, refills.nval_num refills, supply.nval_num supply, substr(freq.pcori_basecode, instr(freq.pcori_basecode, ':') + 1, 2) frequency, 
     substr(basis.pcori_basecode, instr(basis.pcori_basecode, ':') + 1, 2) basis
     , substr(mo.c_name, 1, 50) raw_rx_med_name, substr(mo.c_basecode, 1, 50) raw_rxnorm_cui
@@ -975,7 +975,7 @@ PMN_EXECUATESQL(sqltext);
     
 /* NOTE: New transformation developed by KUMC */
 
-insert into dispensing (
+insert /*+ PARALLEL */ into dispensing (
 	PATID
   ,PRESCRIBINGID
   ,DISPENSE_DATE -- using start_date from i2b2
@@ -986,7 +986,7 @@ insert into dispensing (
 )
 /* Below is the Cycle 2 fix for populating the DISPENSING table  */
 with disp_status as (
-  select ibf.patient_num, ibf.encounter_num, ibf.concept_cd, ibf.instance_num, ibf.start_date, ibf.modifier_cd
+  select /*+ PARALLEL */ ibf.patient_num, ibf.encounter_num, ibf.concept_cd, ibf.instance_num, ibf.start_date, ibf.modifier_cd
   from i2b2fact ibf
   join "&&i2b2_meta_schema".pcornet_med pnm
     on ibf.modifier_cd=pnm.c_basecode
@@ -996,20 +996,20 @@ with disp_status as (
     and length(replace(ibf.concept_cd, 'NDC:', '')) < 12
 )
 , disp_quantity as (
-  select ibf.patient_num, ibf.encounter_num, ibf.concept_cd, ibf.instance_num, ibf.start_date, ibf.modifier_cd, ibf.nval_num
+  select /*+ PARALLEL */ ibf.patient_num, ibf.encounter_num, ibf.concept_cd, ibf.instance_num, ibf.start_date, ibf.modifier_cd, ibf.nval_num
   from i2b2fact ibf
   join "&&i2b2_meta_schema".pcornet_med pnm
     on ibf.modifier_cd=pnm.c_basecode
   where pnm.c_fullname like '\PCORI_MOD\RX_QUANTITY\%'
 )
 , disp_supply as (
-  select ibf.patient_num, ibf.encounter_num, ibf.concept_cd, ibf.instance_num, ibf.start_date, ibf.modifier_cd, ibf.nval_num
+  select /*+ PARALLEL */ ibf.patient_num, ibf.encounter_num, ibf.concept_cd, ibf.instance_num, ibf.start_date, ibf.modifier_cd, ibf.nval_num
   from i2b2fact ibf
   join "&&i2b2_meta_schema".pcornet_med pnm
     on ibf.modifier_cd=pnm.c_basecode
   where pnm.c_fullname like '\PCORI_MOD\RX_DAYS_SUPPLY\%'
 )
-select distinct
+select /*+ PARALLEL */ distinct
   st.patient_num patid,
   null prescribingid,
   st.start_date dispense_date,
@@ -1083,8 +1083,8 @@ begin
   
 execute immediate 'truncate table death';
 
-insert into death( patid, death_date, death_date_impute, death_source, death_match_confidence) 
-select distinct pat.patient_num, pat.death_date,
+insert /*+ PARALLEL */ into death( patid, death_date, death_date_impute, death_source, death_match_confidence) 
+select /*+ PARALLEL */ distinct pat.patient_num, pat.death_date,
 case when vital_status_cd like 'X%' then 'B'
   when vital_status_cd like 'M%' then 'D'
   when vital_status_cd like 'Y%' then 'N'
@@ -1094,7 +1094,7 @@ case when vital_status_cd like 'X%' then 'B'
   'NI' death_match_confidence
 from (
 	/* KUMC specific fix to address unknown death dates */
-  select
+  select /*+ PARALLEL */
     ibp.patient_num,
     case when ibf.concept_cd is not null then DATE '2100-12-31' -- in accordance with the CDM v3 spec
       else ibp.death_date end death_date,
@@ -1149,7 +1149,7 @@ begin
   /* Remove rows from the PRESCRIBING table where RX_* fields are null
      TODO: Remove this when fixed in HERON
    */
-  delete
+  delete /*+ PARALLEL */
   from prescribing
   where rx_basis is null
     and rx_quantity is null
