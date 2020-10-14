@@ -53,8 +53,8 @@ and c_basecode not between 'KUH|COMPONENT_ID:' and 'KUH|COMPONENT_ID:~'
 and c_visualattributes like 'L_'
 ;
 */
-create table lab_result_key NOLOGGING as
-select lab_result_cm_seq.nextval LAB_RESULT_CM_ID
+create table lab_result_key parallel NOLOGGING as
+select /*+ PARALLEL */ lab_result_cm_seq.nextval LAB_RESULT_CM_ID
 , patient_num PATID
 , encounter_num ENCOUNTERID
 , instance_num INSTANCE_NUM
@@ -75,8 +75,8 @@ and m.valtype_cd in ('N','T')
 and (m.nval_num is null or m.nval_num<=9999999)
 /
 
-create table lab_result_w_base NOLOGGING as
-select lab.*
+create table lab_result_w_base PARALLEL NOLOGGING as
+select  /*+ PARALLEL */ lab.*
 , pl.pcori_basecode LAB_LOINC
 , pl.c_path C_PATH
 from lab_result_key lab
@@ -89,26 +89,26 @@ left join
 on lab.RAW_FACILITY_CODE = pl.c_basecode
 /
 
-create table lab_result_w_parent NOLOGGING as
-select lab.*
+create table lab_result_w_parent  PARALLEL NOLOGGING as
+select  /*+ PARALLEL */  lab.*
 , parent.c_basecode LAB_NAME
 from lab_result_w_base lab
 left join
 (
-  select c_fullname, c_basecode
+  select  /*+ PARALLEL */  c_fullname, c_basecode
   from pcornet_lab
 ) parent
 on lab.C_PATH = parent.c_fullname
 /
 
-create table lab_result_w_norm NOLOGGING as
-select lab.*
+create table lab_result_w_norm  PARALLEL NOLOGGING as
+select  /*+ PARALLEL */  lab.*
 , ref_lo NORM_RANGE_LOW
 , ref_hi NORM_RANGE_HIGH
 from lab_result_w_parent lab
 left join
 (
-  select patid, concept_cd, birth_date, age_lower, age_upper, ref_hi, ref_lo
+  select  /*+ PARALLEL */  patid, concept_cd, birth_date, age_lower, age_upper, ref_hi, ref_lo
   from labnormal
   join demographic
   on demographic.sex = labnormal.sex
@@ -119,13 +119,13 @@ and (lab.LAB_ORDER_DATE - norm.birth_date) > norm.age_lower
 and (lab.LAB_ORDER_DATE - norm.birth_date) <= norm.age_upper
 /
 
-create table lab_result_w_source NOLOGGING as
-select lab.*
+create table lab_result_w_source  PARALLEL NOLOGGING as
+select  /*+ PARALLEL */  lab.*
 , NVL(code, 'NI') SPECIMEN_SOURCE
 from lab_result_w_norm lab
 left join
 (
-  select distinct instance_num, NVL(code, 'OT') code
+  select  /*+ PARALLEL */  distinct instance_num, NVL(code, 'OT') code
   from &&i2b2_data_schema.supplemental_fact sf
   left join specimen_source_map ssm on lower(sf.tval_char) = lower(ssm.specimen_source_name)
   and ssm.specimen_source_name is not null
@@ -133,8 +133,8 @@ left join
 on lab.instance_num = map.instance_num
 /
 
-create table lab_result_cm NOLOGGING as
-select distinct cast(lab.LAB_RESULT_CM_ID as varchar(19)) LAB_RESULT_CM_ID
+create table lab_result_cm  PARALLEL NOLOGGING as
+select  /*+ PARALLEL */  distinct cast(lab.LAB_RESULT_CM_ID as varchar(19)) LAB_RESULT_CM_ID
 , cast(lab.PATID as varchar(50)) PATID
 , cast(lab.ENCOUNTERID as varchar(50)) ENCOUNTERID
 , lab.SPECIMEN_SOURCE
@@ -196,7 +196,7 @@ END;
 /
                     
 update cdm_status
-set end_time = sysdate, records = (select count(*) from lab_result_cm)
+set end_time = sysdate, records = (select  /*+ PARALLEL */  count(*) from lab_result_cm)
 where task = 'lab_result_cm'
 /
 
