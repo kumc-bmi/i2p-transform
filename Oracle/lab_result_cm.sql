@@ -53,7 +53,7 @@ and c_basecode not between 'KUH|COMPONENT_ID:' and 'KUH|COMPONENT_ID:~'
 and c_visualattributes like 'L_'
 ;
 */
-create table lab_result_key as
+create table lab_result_key NOLOGGING as
 select lab_result_cm_seq.nextval LAB_RESULT_CM_ID
 , patient_num PATID
 , encounter_num ENCOUNTERID
@@ -75,7 +75,7 @@ and m.valtype_cd in ('N','T')
 and (m.nval_num is null or m.nval_num<=9999999)
 /
 
-create table lab_result_w_base as
+create table lab_result_w_base NOLOGGING as
 select lab.*
 , pl.pcori_basecode LAB_LOINC
 , pl.c_path C_PATH
@@ -89,7 +89,7 @@ left join
 on lab.RAW_FACILITY_CODE = pl.c_basecode
 /
 
-create table lab_result_w_parent as
+create table lab_result_w_parent NOLOGGING as
 select lab.*
 , parent.c_basecode LAB_NAME
 from lab_result_w_base lab
@@ -101,7 +101,7 @@ left join
 on lab.C_PATH = parent.c_fullname
 /
 
-create table lab_result_w_norm as
+create table lab_result_w_norm NOLOGGING as
 select lab.*
 , ref_lo NORM_RANGE_LOW
 , ref_hi NORM_RANGE_HIGH
@@ -119,7 +119,7 @@ and (lab.LAB_ORDER_DATE - norm.birth_date) > norm.age_lower
 and (lab.LAB_ORDER_DATE - norm.birth_date) <= norm.age_upper
 /
 
-create table lab_result_w_source as
+create table lab_result_w_source NOLOGGING as
 select lab.*
 , NVL(code, 'NI') SPECIMEN_SOURCE
 from lab_result_w_norm lab
@@ -133,7 +133,7 @@ left join
 on lab.instance_num = map.instance_num
 /
 
-create table lab_result_cm as
+create table lab_result_cm NOLOGGING as
 select distinct cast(lab.LAB_RESULT_CM_ID as varchar(19)) LAB_RESULT_CM_ID
 , cast(lab.PATID as varchar(50)) PATID
 , cast(lab.ENCOUNTERID as varchar(50)) ENCOUNTERID
@@ -187,7 +187,7 @@ unknown, leave blank.*/
 from lab_result_w_source lab
 /
 
-create index lab_result_cm_idx on lab_result_cm (PATID, ENCOUNTERID)
+create index lab_result_cm_idx on lab_result_cm (PATID, ENCOUNTERID) NOLOGGING PARALLEL 35
 /
 
 BEGIN
