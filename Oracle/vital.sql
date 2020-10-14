@@ -56,8 +56,8 @@ PMN_DROPSQL('drop index vital_idx');
 execute immediate 'truncate table vital';
 
 -- jgk: I took out admit_date - it doesn't appear in the scheme. Now in SQLServer format - date, substring, name on inner select, no nested with. Added modifiers and now use only pathnames, not codes.
-insert into vital(patid, encounterid, measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,tobacco_type)
-select patid, encounterid, to_date(measure_date,'rrrr-mm-dd') measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,
+insert  /*+ PARALLEL */  into vital(patid, encounterid, measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,tobacco_type)
+select  /*+ PARALLEL */  patid, encounterid, to_date(measure_date,'rrrr-mm-dd') measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,
 case when tobacco in ('02','03','04') then -- no tobacco
     case when smoking in ('03','04') then '04' -- no smoking
         when smoking in ('01','02','07','08') then '01' -- smoking
@@ -68,13 +68,13 @@ case when tobacco in ('02','03','04') then -- no tobacco
         else '05' end
  else 'NI' end tobacco_type
 from
-(select patid, encounterid, measure_date, measure_time, NVL(max(vital_source),'HC') vital_source, -- jgk: not in the spec, so I took it out  admit_date,
+(select  /*+ PARALLEL */  patid, encounterid, measure_date, measure_time, NVL(max(vital_source),'HC') vital_source, -- jgk: not in the spec, so I took it out  admit_date,
 max(ht) ht, max(wt) wt, max(diastolic) diastolic, max(systolic) systolic,
 max(original_bmi) original_bmi, NVL(max(bp_position),'NI') bp_position,
 NVL(NVL(max(smoking),max(unk_tobacco)),'NI') smoking,
 NVL(NVL(max(tobacco),max(unk_tobacco)),'NI') tobacco
 from (
-  select vit.patid, vit.encounterid, vit.measure_date, vit.measure_time
+  select  /*+ PARALLEL */  vit.patid, vit.encounterid, vit.measure_date, vit.measure_time
     , case when vit.pcori_code like '\PCORI\VITAL\HT%' then vit.nval_num else null end ht
     , case when vit.pcori_code like '\PCORI\VITAL\WT%' then vit.nval_num else null end wt
     , case when vit.pcori_code like '\PCORI\VITAL\BP\DIASTOLIC%' then vit.nval_num else null end diastolic
@@ -88,13 +88,13 @@ from (
     , enc.admit_date
   from demographic pd
   left join (
-    select
+    select  /*+ PARALLEL */ 
       obs.patient_num patid, obs.encounter_num encounterid,
 	to_char(obs.start_Date,'YYYY-MM-DD') measure_date,
 	to_char(obs.start_Date,'HH24:MI') measure_time,
       nval_num, pcori_basecode, codes.pcori_code
     from i2b2fact obs
-    inner join (select c_basecode concept_cd, c_fullname pcori_code, pcori_basecode
+    inner join (select  /*+ PARALLEL */  c_basecode concept_cd, c_fullname pcori_code, pcori_basecode
       from (
         select '\PCORI\VITAL\BP\DIASTOLIC\' concept_path  FROM DUAL
         union all
@@ -138,7 +138,7 @@ PCORNetVital();
 END;
 /
 update cdm_status
-set end_time = sysdate, records = (select count(*) from vital)
+set end_time = sysdate, records = (select  /*+ PARALLEL */  count(*) from vital)
 where task = 'vital'
 /
 select records from cdm_status where task = 'vital'
