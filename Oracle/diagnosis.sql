@@ -115,13 +115,13 @@ execute immediate 'truncate table originfact';
 execute immediate 'truncate table poafact';
 
 
-CREATE TABLE SOURCEFACT
+execute immediate "CREATE TABLE SOURCEFACT
 nologging PARALLEL as
 	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname C_FULLNAME
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
-	where dxsource.c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%';
+	where dxsource.c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%' ";
 
 execute immediate 'create index sourcefact_idx on sourcefact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('SOURCEFACT');
