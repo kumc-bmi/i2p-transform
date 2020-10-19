@@ -65,10 +65,10 @@ begin
 end;
 /
 
-BEGIN
-PMN_DROPSQL('DROP TABLE sourcefact');
-END;
-/
+-- BEGIN
+-- PMN_DROPSQL('DROP TABLE sourcefact');
+-- END;
+-- /
 
 
 BEGIN
