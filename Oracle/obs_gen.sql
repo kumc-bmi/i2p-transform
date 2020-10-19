@@ -40,7 +40,7 @@ BEGIN
 PMN_DROPSQL('drop table pcornet_cdm.obsgen_naaccr');
 END;
 /
-create table pcornet_cdm.obsgen_naaccr as
+create table pcornet_cdm.obsgen_naaccr nologging parallel as
 select naaccrfact.patient_num, naaccrfact.encounter_num,naaccrfact.provider_id,
 naaccrfact.start_date,naaccrfact.tval_char,naaccrfact.nval_num,
 substr(naaccrfact.concept_cd, instr(naaccrfact.concept_cd, '|') + 1,
