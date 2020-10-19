@@ -124,8 +124,8 @@ execute immediate 'truncate table pdxfact';
 execute immediate 'truncate table originfact';
 execute immediate 'truncate table poafact';
 
-insert into sourcefact
-	select distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
+insert /*+ PARALLEL */  into sourcefact
+	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
@@ -134,8 +134,8 @@ insert into sourcefact
 execute immediate 'create index sourcefact_idx on sourcefact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('SOURCEFACT');
 
-insert into pdxfact
-	select distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode pdxsource,dxsource.c_fullname
+insert /*+ PARALLEL */  into pdxfact
+	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode pdxsource,dxsource.c_fullname
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
@@ -144,8 +144,8 @@ insert into pdxfact
 execute immediate 'create index pdxfact_idx on pdxfact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('PDXFACT');
 
-insert into originfact --CDM 3.1 addition
-	select patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode originsource, dxsource.c_fullname
+insert /*+ PARALLEL */  into originfact --CDM 3.1 addition
+	select /*+ PARALLEL */  patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode originsource, dxsource.c_fullname
 	from i2b2fact factline
     inner join ENCOUNTER enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
@@ -154,8 +154,8 @@ insert into originfact --CDM 3.1 addition
 execute immediate 'create index originfact_idx on originfact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('ORIGINFACT');
 
-insert into poafact
-	select patient_num, encounter_num, provider_id, concept_cd, start_date, 'Y' poasource, 'Yes' rawpoasource, dxsource.c_fullname
+insert /*+ PARALLEL */  into poafact
+	select /*+ PARALLEL */  patient_num, encounter_num, provider_id, concept_cd, start_date, 'Y' poasource, 'Yes' rawpoasource, dxsource.c_fullname
 	from i2b2fact factline
     inner join ENCOUNTER enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd = dxsource.c_basecode
@@ -163,7 +163,7 @@ insert into poafact
 
 	union all
 
-	select patient_num, factline.encounter_num, provider_id, concept_cd, start_date,
+	select /*+ PARALLEL */  patient_num, factline.encounter_num, provider_id, concept_cd, start_date,
 	case
 	  when sf.tval_char = 'No' then 'N'
 	  when sf.tval_char = 'Unknown' then 'UN'
@@ -178,7 +178,7 @@ insert into poafact
 execute immediate 'create index poafact_idx on poafact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('POAFACT');
 
-insert into diagnosis (patid, encounterid, enc_type, admit_date, dx_date, providerid, dx, dx_type, dx_source, dx_origin, pdx, dx_poa, raw_dx_poa)
+insert /*+ PARALLEL */  into diagnosis (patid, encounterid, enc_type, admit_date, dx_date, providerid, dx, dx_type, dx_source, dx_origin, pdx, dx_poa, raw_dx_poa)
 /* KUMC started billing with ICD10 on Oct 1, 2015. */
 with icd10_transition as (
   select date '2015-10-01' as cutoff from dual
@@ -199,19 +199,19 @@ with icd10_transition as (
 
 /* DX_IDs may have mappings to both ICD9 and ICD10 */
 , has9 as (
-  select distinct c_basecode, pcori_basecode icd9_code
+  select /*+ PARALLEL */  distinct c_basecode, pcori_basecode icd9_code
   from "&&i2b2_meta_schema".pcornet_diag diag
   where diag.c_fullname like '\PCORI\DIAGNOSIS\09%'
   and pcori_basecode is not null
 )
 , has10 as (
-  select distinct c_basecode, pcori_basecode icd10_code
+  select /*+ PARALLEL */  distinct c_basecode, pcori_basecode icd10_code
   from "&&i2b2_meta_schema".pcornet_diag diag
   where diag.c_fullname like '\PCORI\DIAGNOSIS\10%'
   and pcori_basecode is not null
 )
 , diag as (
-  select distinct diag.c_basecode, diag.pcori_basecode, has9.icd9_code, has10.icd10_code
+  select /*+ PARALLEL */  distinct diag.c_basecode, diag.pcori_basecode, has9.icd9_code, has10.icd10_code
        , case when diag.pcori_basecode = has9.icd9_code then (select icd_9_cm from dx_type)
               when diag.pcori_basecode = has10.icd10_code then (select icd_10_cm from dx_type)
               else (select no_info from dx_type)
@@ -233,7 +233,7 @@ with icd10_transition as (
  * facts produce duplicates based on the i2b2 fact primary key.
  */
 , diag_fact_merge as (
- select factline.*, diag.*
+ select /*+ PARALLEL */  factline.*, diag.*
       , row_number() over (partition by factline.patient_num
                                       , factline.encounter_num
                                       , factline.concept_cd
@@ -253,7 +253,7 @@ with icd10_transition as (
  select * from diag_fact_merge where unique_row = 1
 )
 
-select distinct factline.patient_num, factline.encounter_num encounterid, enc_type, enc.admit_date, factline.start_date, enc.providerid
+select /*+ PARALLEL */  distinct factline.patient_num, factline.encounter_num encounterid, enc_type, enc.admit_date, factline.start_date, enc.providerid
      , factline.pcori_basecode dx
      , factline.dx_type dxtype,
 	CASE WHEN enc_type='AV' THEN 'FI' ELSE nvl(SUBSTR(dxsource,INSTR(dxsource,':')+1,2) ,'NI') END dx_source,
@@ -306,7 +306,7 @@ PCORNetDiagnosis();
 END;
 /
 update cdm_status
-set end_time = sysdate, records = (select count(*) from diagnosis)
+set end_time = sysdate, records = (select /*+ PARALLEL */  count(*) from diagnosis)
 where task = 'diagnosis'
 /
 select records from cdm_status where task = 'diagnosis'
