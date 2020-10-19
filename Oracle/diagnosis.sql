@@ -6,7 +6,7 @@ BEGIN
 PMN_DROPSQL('DROP TABLE diagnosis');
 END;
 /
-CREATE TABLE diagnosis(
+CREATE TABLE diagnosis NOLOGGING (
 	DIAGNOSISID varchar(19)  primary key,
 	PATID varchar(50) NOT NULL,
 	ENCOUNTERID varchar(50) NOT NULL,
@@ -49,7 +49,7 @@ PMN_DROPSQL('DROP TABLE sourcefact');
 END;
 /
 
-CREATE TABLE SOURCEFACT  (
+CREATE TABLE SOURCEFACT NOLOGGING  (
 	PATIENT_NUM  	NUMBER(38) NOT NULL,
 	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
 	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
@@ -65,7 +65,7 @@ PMN_DROPSQL('DROP TABLE pdxfact');
 END;
 /
 
-CREATE TABLE PDXFACT  (
+CREATE TABLE PDXFACT  NOLOGGING (
 	PATIENT_NUM  	NUMBER(38) NOT NULL,
 	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
 	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
@@ -81,7 +81,7 @@ PMN_DROPSQL('DROP TABLE originfact');
 END;
 /
 
-CREATE TABLE ORIGINFACT  (
+CREATE TABLE ORIGINFACT NOLOGGING  (
 	PATIENT_NUM  	NUMBER(38) NOT NULL,
 	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
 	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
@@ -97,7 +97,7 @@ PMN_DROPSQL('DROP TABLE poafact');
 END;
 /
 
-CREATE TABLE POAFACT  (
+CREATE TABLE POAFACT  NOLOGGING (
 	PATIENT_NUM  	NUMBER(38) NOT NULL,
 	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
 	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
@@ -124,7 +124,7 @@ execute immediate 'truncate table pdxfact';
 execute immediate 'truncate table originfact';
 execute immediate 'truncate table poafact';
 
-insert /*+ PARALLEL */  into sourcefact
+INSERT /*+ APPEND NOLOGGING */  into sourcefact
 	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
@@ -134,7 +134,7 @@ insert /*+ PARALLEL */  into sourcefact
 execute immediate 'create index sourcefact_idx on sourcefact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('SOURCEFACT');
 
-insert /*+ PARALLEL */  into pdxfact
+INSERT /*+ APPEND NOLOGGING */  into pdxfact
 	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode pdxsource,dxsource.c_fullname
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
@@ -144,7 +144,7 @@ insert /*+ PARALLEL */  into pdxfact
 execute immediate 'create index pdxfact_idx on pdxfact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('PDXFACT');
 
-insert /*+ PARALLEL */  into originfact --CDM 3.1 addition
+INSERT /*+ APPEND NOLOGGING */  into originfact --CDM 3.1 addition
 	select /*+ PARALLEL */  patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode originsource, dxsource.c_fullname
 	from i2b2fact factline
     inner join ENCOUNTER enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
@@ -154,7 +154,7 @@ insert /*+ PARALLEL */  into originfact --CDM 3.1 addition
 execute immediate 'create index originfact_idx on originfact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('ORIGINFACT');
 
-insert /*+ PARALLEL */  into poafact
+INSERT /*+ APPEND NOLOGGING */  into poafact
 	select /*+ PARALLEL */  patient_num, encounter_num, provider_id, concept_cd, start_date, 'Y' poasource, 'Yes' rawpoasource, dxsource.c_fullname
 	from i2b2fact factline
     inner join ENCOUNTER enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
@@ -178,7 +178,7 @@ insert /*+ PARALLEL */  into poafact
 execute immediate 'create index poafact_idx on poafact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('POAFACT');
 
-insert /*+ PARALLEL */  into diagnosis (patid, encounterid, enc_type, admit_date, dx_date, providerid, dx, dx_type, dx_source, dx_origin, pdx, dx_poa, raw_dx_poa)
+INSERT /*+ APPEND NOLOGGING */  into diagnosis (patid, encounterid, enc_type, admit_date, dx_date, providerid, dx, dx_type, dx_source, dx_origin, pdx, dx_poa, raw_dx_poa)
 /* KUMC started billing with ICD10 on Oct 1, 2015. */
 with icd10_transition as (
   select date '2015-10-01' as cutoff from dual
