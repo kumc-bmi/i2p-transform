@@ -49,16 +49,6 @@ PMN_DROPSQL('DROP TABLE sourcefact');
 END;
 /
 
-CREATE TABLE SOURCEFACT   (
-	PATIENT_NUM  	NUMBER(38) NOT NULL,
-	ENCOUNTER_NUM	NUMBER(38) NOT NULL,
-	PROVIDER_ID  	VARCHAR2(50) NOT NULL,
-	CONCEPT_CD   	VARCHAR2(50) NOT NULL,
-	START_DATE   	DATE NOT NULL,
-	DXSOURCE     	VARCHAR2(50) NULL,
-	C_FULLNAME   	VARCHAR2(700) NOT NULL
-	)
-/
 
 BEGIN
 PMN_DROPSQL('DROP TABLE pdxfact');
@@ -124,8 +114,10 @@ execute immediate 'truncate table pdxfact';
 execute immediate 'truncate table originfact';
 execute immediate 'truncate table poafact';
 
-INSERT /*+ APPEND NOLOGGING */  into sourcefact
-	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
+
+CREATE TABLE SOURCEFACT
+nologging PARALLEL as
+	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname C_FULLNAME
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
