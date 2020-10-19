@@ -2,6 +2,27 @@
 */
 insert into cdm_status (task, start_time) select 'diagnosis', sysdate from dual
 /
+
+WHENEVER SQLERROR CONTINUE
+/
+
+drop index sourcefact_idx
+/
+drop table sourcefact purge
+/
+
+WHENEVER SQLERROR EXIT FAILURE
+/
+
+CREATE TABLE SOURCEFACT
+nologging PARALLEL as
+	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname C_FULLNAME
+	from i2b2fact factline
+    inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
+    inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
+	where dxsource.c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%'
+/
+
 BEGIN
 PMN_DROPSQL('DROP TABLE diagnosis');
 END;
@@ -99,20 +120,6 @@ CREATE TABLE POAFACT   (
 	)
 /
 
-WHENEVER SQLERROR CONTINUE;
-
-drop index sourcefact_idx;
-drop table sourcefact purge;
-
-WHENEVER SQLERROR EXIT FAILURE;
-
-CREATE TABLE SOURCEFACT
-nologging PARALLEL as
-	select /*+ PARALLEL */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname C_FULLNAME
-	from i2b2fact factline
-    inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
-    inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
-	where dxsource.c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%' ;
 
 create or replace procedure PCORNetDiagnosis as
 begin
