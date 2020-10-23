@@ -106,11 +106,9 @@ insert into cdm_status (task, start_time) select 'pcornet_loader', sysdate from 
  
  delete from pcornet_cdm.death
  where patid not in(select patid from pcornet_cdm.demographic);
+ commit;
 
 update cdm_status
 set end_time = sysdate, records = 0
-where task = 'pcornet_loader'
-;
-select records + 1 from cdm_status where task = 'pcornet_loader'
-;
-commit;
+where task = 'pcornet_loader';
+select records + 1 from cdm_status where task = 'pcornet_loader';
