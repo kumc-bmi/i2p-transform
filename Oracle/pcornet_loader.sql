@@ -1,9 +1,7 @@
 /** pcornet_loader - perform post-processing operations.
 */
-insert into cdm_status (task, start_time) select 'pcornet_loader', sysdate from dual
-/
-create or replace procedure PCORNetPostProc as
-begin
+insert into cdm_status (task, start_time) select 'pcornet_loader', sysdate from dual;
+
 
   /* Copy providerid from encounter table to diagnosis, procedures tables.
   CDM specification says:
@@ -98,11 +96,9 @@ begin
   where ndc in ('00000000000', '99999999999') or length(ndc)<11 or ndc like '00NDL%' or ndc like '00SYR%'
   ;
 
- EXECUTE IMMEDIATE 'alter table pcornet_cdm.encounter
- modify facility_location varchar2(5)';
+ alter table pcornet_cdm.encounter  modify facility_location varchar2(5);
  
- EXECUTE IMMEDIATE 'alter table pcornet_cdm.lab_result_cm
- modify lab_loinc varchar2(10)';
+ alter table pcornet_cdm.lab_result_cm modify lab_loinc varchar2(10);
  
  update pcornet_cdm.diagnosis
  set pdx='NI'
@@ -111,14 +107,10 @@ begin
  delete from pcornet_cdm.death
  where patid not in(select patid from pcornet_cdm.demographic);
 
-end PCORNetPostProc;
-/
-BEGIN
-PCORNetPostProc();
-END;
-/
 update cdm_status
 set end_time = sysdate, records = 0
 where task = 'pcornet_loader'
-/
+;
 select records + 1 from cdm_status where task = 'pcornet_loader'
+;
+commit;
