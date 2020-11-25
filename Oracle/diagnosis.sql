@@ -123,6 +123,8 @@ execute immediate 'truncate table sourcefact';
 execute immediate 'truncate table pdxfact';
 execute immediate 'truncate table originfact';
 execute immediate 'truncate table poafact';
+execute immediate 'truncate table covid_meta';
+execute immediate 'truncate tablecovid_dx_facts';
 
 insert into sourcefact
 	select distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
@@ -177,6 +179,20 @@ insert into poafact
 
 execute immediate 'create index poafact_idx on poafact (patient_num, encounter_num, provider_id, concept_cd, start_date)';
 GATHER_TABLE_STATS('POAFACT');
+
+execute immediate 'create table covid_meta as
+  select distinct c_basecode, pcori_basecode icd10_code
+  from nightherondata.pcornet_diag diag
+  where diag.c_fullname like ''\PCORI\DIAGNOSIS\10%''
+  and pcori_basecode = ''U07.1'' ';
+
+-- let's collect the U07.1 facts...
+execute immediate 'create table covid_dx_facts as
+select f.*
+from i2b2fact f
+where f.concept_cd in (
+select c_basecode from covid_meta)';
+GATHER_TABLE_STATS('covid_dx_facts'); 
 
 insert into diagnosis (patid, encounterid, enc_type, admit_date, dx_date, providerid, dx, dx_type, dx_source, dx_origin, pdx, dx_poa, raw_dx_poa)
 /* KUMC started billing with ICD10 on Oct 1, 2015. */
@@ -295,6 +311,64 @@ and factline.start_date=poafact.start_Date
 where (sourcefact.c_fullname like '\PCORI_MOD\CONDITION_OR_DX\DX_SOURCE\%' or sourcefact.c_fullname is null)
 -- order by enc.admit_date desc
 ;
+
+insert /*+ APPEND */ into diagnosis
+SELECT
+    diagnosis_seq.nextval diagnosisid,
+    f.patient_num patid,
+    f.encounter_num encounterid,
+    enc.enc_type, -- , 'UN') enc_type, -- ISSUE: encounter mis-matches
+    enc.admit_date, -- , trunc(f.start_date)), -- ISSUE
+    trunc(f.start_date) dx_date,
+    case when f.provider_id = '@' then null else f.provider_id end providerid,
+    'U07.1' dx,
+    '10' dx_type,
+    case
+    WHEN enc_type in ('AV', 'OA') THEN 'FI' -- CDM 5.1: Ambulatory encounters would generally be expected to have a source of "Final."
+    when raw_dx_source like '%:ADMIT%' then 'AD'
+    when raw_dx_source like '%DX|BILL:DC%' then 'DI' -- discharge
+    when raw_dx_source like '%DX|BILL:POA%' then 'DI' -- from pcornet_diag modifers
+    when raw_dx_source like '%DiagObs:PAT_ENC_DX%' then 'UN'
+    when raw_dx_source like '%PROF:PRIMARY%' then 'FI' -- DX_SOURCE:FI	DX|PROF:PRIMARY
+    when raw_dx_source like '%PROF:NONPRIMARY%' then 'FI' -- DX_SOURCE:FI	DX|PROF:PRIMARY
+    when raw_dx_source like '%MEDICAL_HX%' then 'OT' -- medical history -> other
+    when raw_dx_source like '%PROBLEM_LIST%' then 'OT' -- ISSUE: source in case of PROBLEM_LIST?
+    -- ISSUE: else???
+    end dx_source,
+    case
+    when raw_dx_source like '%DX|BILL:%' then 'BI' -- billing
+    when raw_dx_source like '%DX|PROF:%' then 'BI' -- professional charges -> billing
+    when raw_dx_source like '%:UHC_DIAGNOSIS%' then 'BI' -- from pcornet_diag
+    when raw_dx_source like '%PAT_ENC_DX%' or raw_dx_source like '%PROBLEM_LIST%' then 'OD' -- Order/EHR
+    when raw_dx_source like '%MEDICAL_HX%' then 'OT' -- medical history -> other
+    end dx_origin,
+    case
+    when raw_dx_source like '%SECOND%' then 'S'
+    when raw_dx_source like '%PRIMARY%' then 'P'
+    end pdx,
+    case when enc_type in ('EI', 'IP') then
+      case
+        when raw_dx_source like '%ADMIT%' then 'Y'
+        when raw_dx_source like ':POA%' then 'Y'
+        else 'NI'
+      end
+    end dx_poa,
+    substr(f.raw_dx, 1, 50) raw_dx,
+    null raw_dx_type,
+    substr(f.raw_dx_source, 1, 50) raw_dx_source,
+    null raw_origdx,
+    null raw_pdx,
+    null raw_dx_poa
+FROM
+    (
+    select patient_num, encounter_num, start_date, provider_id
+          , listagg(modifier_cd, ',') within group (order by modifier_cd) raw_dx_source
+          , listagg(concept_cd, ',') within group (order by concept_cd) raw_dx
+     from covid_dx_facts
+     group by patient_num, encounter_num, start_date, provider_id 
+    ) f
+    join encounter enc on enc.encounterid = to_char(f.encounter_num);
+commit;
 
 execute immediate 'create index diagnosis_idx on diagnosis (PATID, ENCOUNTERID)';
 GATHER_TABLE_STATS('DIAGNOSIS');
