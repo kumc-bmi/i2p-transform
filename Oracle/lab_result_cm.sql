@@ -138,7 +138,10 @@ select distinct cast(lab.LAB_RESULT_CM_ID as varchar(19)) LAB_RESULT_CM_ID
 , cast(lab.PATID as varchar(50)) PATID
 , cast(lab.ENCOUNTERID as varchar(50)) ENCOUNTERID
 , lab.SPECIMEN_SOURCE
-, lab.LAB_LOINC LAB_LOINC
+, case
+  when raw_facility_code = 'KUH|COMPONENT_ID:6552' then '94309-2'  
+  else lab.LAB_LOINC 
+  end LAB_LOINC
 /*CDM 5.1-Do not populate the LOINC field with dummy codes. If the LOINC code for a result is
 unknown, leave blank.*/
 , 'NI' PRIORITY
@@ -150,7 +153,17 @@ unknown, leave blank.*/
 , to_char(lab.LAB_ORDER_DATE, 'HH24:MI')  SPECIMEN_TIME
 , lab.RESULT_DATE
 , to_char(lab.RESULT_DATE, 'HH24:MI') RESULT_TIME
-, 'NI' RESULT_QUAL
+, case
+  when raw_facility_code = 'KUH|COMPONENT_ID:6552' then
+    case 
+        WHEN lower(raw_result) in ('detected', 'dectected', 'dectected (a)', 'positive', 'detected (a)','positive 2019-ncov') then 'DETECTED'
+        WHEN lower(raw_result) in ('none detected','no detected', 'not deteccted','non detected','not detected', 'presumptive negative','negative','neg','not deteced', 'not dectected', 'not detectable','negatvie','not derected','negative for sars-cov-w') then 'NOT DETECTED'
+        WHEN lower(raw_result) in ('result invalid','test invalid','test invalid, patient credited. afton g., rn, noti','invalid', 'invalid result','invalid,specimen should be recollected if clinical','invalid. specimen should be recollected if clinica','invalid.  specimen should be recollected if clinic') then 'INVALID'
+        else 'NI'
+    end
+  else
+  'NI' 
+  end RESULT_QUAL
 , cast(null as varchar(50)) RESULT_SNOMED
 , case when lab.RAW_RESULT = 'N' then lab.RESULT_NUM else null end RESULT_NUM
 , case when lab.RAW_RESULT = 'N' then (case nvl(nullif(lab.RESULT_MODIFIER, ''),'NI') when 'E' then 'EQ' when 'NE' then 'OT' when 'L' then 'LT' when 'LE' then 'LE' when 'G' then 'GT' when 'GE' then 'GE' else 'NI' end)  else 'TX' end RESULT_MODIFIER
