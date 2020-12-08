@@ -125,7 +125,7 @@ execute immediate 'truncate table originfact';
 execute immediate 'truncate table poafact';
 
 INSERT /*+ APPEND */ into sourcefact
-	select /*+ parallel */ distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
+	select /*+ parallel(6) */ distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
@@ -135,7 +135,7 @@ execute immediate 'create index sourcefact_idx on sourcefact (patient_num, encou
 GATHER_TABLE_STATS('SOURCEFACT');
 
 INSERT /*+ APPEND */ into pdxfact
-	select  /*+ parallel */ distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode pdxsource,dxsource.c_fullname
+	select  /*+ parallel(6) */ distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode pdxsource,dxsource.c_fullname
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
@@ -145,7 +145,7 @@ execute immediate 'create index pdxfact_idx on pdxfact (patient_num, encounter_n
 GATHER_TABLE_STATS('PDXFACT');
 
 INSERT /*+ APPEND */ into originfact --CDM 3.1 addition
-	select  /*+ parallel */ patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode originsource, dxsource.c_fullname
+	select  /*+ parallel(6) */ patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode originsource, dxsource.c_fullname
 	from i2b2fact factline
     inner join ENCOUNTER enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
@@ -155,7 +155,7 @@ execute immediate 'create index originfact_idx on originfact (patient_num, encou
 GATHER_TABLE_STATS('ORIGINFACT');
 
 INSERT /*+ APPEND */ into poafact
-	select  /*+ parallel */ patient_num, encounter_num, provider_id, concept_cd, start_date, 'Y' poasource, 'Yes' rawpoasource, dxsource.c_fullname
+	select  /*+ parallel(6) */ patient_num, encounter_num, provider_id, concept_cd, start_date, 'Y' poasource, 'Yes' rawpoasource, dxsource.c_fullname
 	from i2b2fact factline
     inner join ENCOUNTER enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd = dxsource.c_basecode
@@ -253,7 +253,7 @@ with icd10_transition as (
  select * from diag_fact_merge where unique_row = 1
 )
 
-select  /*+ parallel */ distinct factline.patient_num, factline.encounter_num encounterid, enc_type, enc.admit_date, factline.start_date, enc.providerid
+select  /*+ parallel(6) */ distinct factline.patient_num, factline.encounter_num encounterid, enc_type, enc.admit_date, factline.start_date, enc.providerid
      , factline.pcori_basecode dx
      , factline.dx_type dxtype,
 	CASE WHEN enc_type='AV' THEN 'FI' ELSE nvl(SUBSTR(dxsource,INSTR(dxsource,':')+1,2) ,'NI') END dx_source,
