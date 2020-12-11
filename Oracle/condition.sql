@@ -63,8 +63,8 @@ PMN_DROPSQL('drop index sourcefact2_idx');
 execute immediate 'truncate table condition';
 execute immediate 'truncate table sourcefact2';
 
-insert into sourcefact2
-	select distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
+INSERT /*+ APPEND */ into  sourcefact2
+	select /*+ parallel(6) */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
 	from i2b2fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
@@ -75,8 +75,8 @@ GATHER_TABLE_STATS('SOURCEFACT2');
 
 /*create_error_table('CONDITION');*/
 
-insert into condition (patid, encounterid, report_date, resolve_date, condition, condition_type, condition_status, condition_source)
-select distinct factline.patient_num, min(factline.encounter_num) encounterid, min(factline.start_date) report_date, NVL(max(factline.end_date),null) resolve_date, diag.pcori_basecode,
+INSERT /*+ APPEND */ into  condition (patid, encounterid, report_date, resolve_date, condition, condition_type, condition_status, condition_source)
+select /*+ parallel(6) */  distinct factline.patient_num, min(factline.encounter_num) encounterid, min(factline.start_date) report_date, NVL(max(factline.end_date),null) resolve_date, diag.pcori_basecode,
 SUBSTR(diag.c_fullname,18,2) condition_type,
 	NVL2(max(factline.end_date) , 'RS', 'NI') condition_status, -- Imputed so might not be entirely accurate
 	NVL(SUBSTR(max(dxsource),INSTR(max(dxsource), ':')+1,2),'NI') condition_source
