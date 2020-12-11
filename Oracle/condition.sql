@@ -82,10 +82,12 @@ commit
 ----------------------------------------------------------------------------------------
 -- reduced the size of obsfact so join can be speed up.
 ----------------------------------------------------------------------------------------
-select count(*) from nightherondata.observation_fact;
---1,480,408,609
-select count(*) from dxsource_fact;
---32,462,503
+select count(*) from nightherondata.observation_fact
+/
+-- 1,480,408,609
+select count(*) from dxsource_fact
+/
+-- 32,462,503
 ----------------------------------------------------------------------------------------
 create or replace procedure PCORNetCondition as
 begin
