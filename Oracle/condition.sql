@@ -77,7 +77,8 @@ CREATE BITMAP INDEX dxsource_fact_encounter_Num ON dxsource_fact (encounter_Num 
 CREATE BITMAP INDEX dxsource_fact_patient_num ON dxsource_fact (patient_num ASC)
 /
 
-commit;
+commit
+/
 ----------------------------------------------------------------------------------------
 -- reduced the size of obsfact so join can be speed up.
 ----------------------------------------------------------------------------------------
