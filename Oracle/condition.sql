@@ -54,6 +54,38 @@ CREATE TABLE SOURCEFACT2  (
 	C_FULLNAME   	VARCHAR2(700) NOT NULL
 	)
 /
+
+drop table dxsource_fact
+/
+
+create table dxsource_fact
+nologging
+parallel 6
+as
+select *
+from i2b2fact factline
+where factline.modifier_cd in
+(
+select distinct c_basecode from pcornet_diag dxsource where dxsource.c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%'
+)
+/
+
+CREATE BITMAP INDEX dxsource_fact_modifier_cd ON dxsource_fact (modifier_cd ASC)
+/
+CREATE BITMAP INDEX dxsource_fact_encounter_Num ON dxsource_fact (encounter_Num ASC)
+/
+CREATE BITMAP INDEX dxsource_fact_patient_num ON dxsource_fact (patient_num ASC)
+/
+
+commit;
+----------------------------------------------------------------------------------------
+-- reduced the size of obsfact so join can be speed up.
+----------------------------------------------------------------------------------------
+select count(*) from nightherondata.observation_fact;
+--1,480,408,609
+select count(*) from dxsource_fact;
+--32,462,503
+----------------------------------------------------------------------------------------
 create or replace procedure PCORNetCondition as
 begin
 
@@ -65,7 +97,7 @@ execute immediate 'truncate table sourcefact2';
 
 INSERT /*+ APPEND */ into  sourcefact2
 	select /*+ parallel(6) */  distinct patient_num, encounter_num, provider_id, concept_cd, start_date, dxsource.pcori_basecode dxsource, dxsource.c_fullname
-	from i2b2fact factline
+	from dxsource_fact factline
     inner join encounter enc on enc.patid = factline.patient_num and enc.encounterid = factline.encounter_Num
     inner join pcornet_diag dxsource on factline.modifier_cd =dxsource.c_basecode
 	where dxsource.c_fullname like '\PCORI_MOD\CONDITION_OR_DX\%';
