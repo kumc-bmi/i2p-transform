@@ -33,6 +33,8 @@ CREATE TABLE vital (
 	Raw_TOBACCO_TYPE varchar (50)
 )
 /
+alter table vital nologging
+/
 
 BEGIN
 PMN_DROPSQL('DROP SEQUENCE vital_seq');
@@ -56,7 +58,7 @@ PMN_DROPSQL('drop index vital_idx');
 execute immediate 'truncate table vital';
 
 -- jgk: I took out admit_date - it doesn't appear in the scheme. Now in SQLServer format - date, substring, name on inner select, no nested with. Added modifiers and now use only pathnames, not codes.
-insert into vital(patid, encounterid, measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,tobacco_type)
+INSERT /*+ APPEND */ into vital(patid, encounterid, measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,tobacco_type)
 select patid, encounterid, to_date(measure_date,'rrrr-mm-dd') measure_date, measure_time,vital_source,ht, wt, diastolic, systolic, original_bmi, bp_position,smoking,tobacco,
 case when tobacco in ('02','03','04') then -- no tobacco
     case when smoking in ('03','04') then '04' -- no smoking
