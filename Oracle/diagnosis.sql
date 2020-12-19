@@ -119,6 +119,9 @@ CREATE TABLE POAFACT  (
 
 BEGIN
 PMN_DROPSQL('DROP TABLE sourcefact_obsfact');
+PMN_DROPSQL('DROP index sfact_obsfact_modifier_cd');
+PMN_DROPSQL('DROP index sfact_obsfact_encounter_num');
+PMN_DROPSQL('DROP index sfact_obsfact_patient_num');
 END;
 /
 
@@ -134,11 +137,11 @@ select distinct c_basecode from pcornet_diag dxsource where dxsource.c_fullname 
 )
 /
 
-CREATE BITMAP INDEX sourcefact_obsfact_modifier_cd ON sourcefact_obsfact (modifier_cd ASC)
+CREATE BITMAP INDEX sfact_obsfact_modifier_cd ON sourcefact_obsfact (modifier_cd ASC)
 /
-CREATE BITMAP INDEX sourcefact_obsfact_encounter_Num ON sourcefact_obsfact (encounter_Num ASC)
+CREATE BITMAP INDEX sfact_obsfact_encounter_num ON sourcefact_obsfact (encounter_Num ASC)
 /
-CREATE BITMAP INDEX sourcefact_obsfact_patient_num ON sourcefact_obsfact (patient_num ASC)
+CREATE BITMAP INDEX sfact_obsfact_patient_num ON sourcefact_obsfact (patient_num ASC)
 /
 
 commit
@@ -149,6 +152,9 @@ commit
 ----------------------------------------------------------------------------------------
 BEGIN
 PMN_DROPSQL('DROP TABLE pdxfact_obsfact');
+PMN_DROPSQL('DROP index pdxfact_obsfact_modifier_cd');
+PMN_DROPSQL('DROP index pdxfact_obsfact_encounter_Num');
+PMN_DROPSQL('DROP index pdxfact_obsfact_patient_num');
 END;
 /
 
@@ -178,6 +184,9 @@ commit
 ----------------------------------------------------------------------------------------
 BEGIN
 PMN_DROPSQL('DROP TABLE originfact_obsfact');
+PMN_DROPSQL('DROP index ofact_obsfact_modifier_cd');
+PMN_DROPSQL('DROP index ofact_obsfact_encounter_Num');
+PMN_DROPSQL('DROP index ofact_obsfact_patient_num');
 END;
 /
 
@@ -193,11 +202,11 @@ select distinct c_basecode from pcornet_diag dxsource where dxsource.c_fullname 
 )
 /
 
-CREATE BITMAP INDEX originfact_obsfact_modifier_cd ON originfact_obsfact (modifier_cd ASC)
+CREATE BITMAP INDEX ofact_obsfact_modifier_cd ON originfact_obsfact (modifier_cd ASC)
 /
-CREATE BITMAP INDEX originfact_obsfact_encounter_Num ON originfact_obsfact (encounter_Num ASC)
+CREATE BITMAP INDEX ofact_obsfact_encounter_Num ON originfact_obsfact (encounter_Num ASC)
 /
-CREATE BITMAP INDEX originfact_obsfact_patient_num ON originfact_obsfact (patient_num ASC)
+CREATE BITMAP INDEX ofact_obsfact_patient_num ON originfact_obsfact (patient_num ASC)
 /
 
 commit
