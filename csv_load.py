@@ -35,7 +35,7 @@ class LoadCSV(CDMStatusTask):
         schema = MetaData()
         l = list()
 
-        with open(self.csvname) as fin:  # ISSUE: ambient
+        with open(self.csvname, encoding="utf-8") as fin:  # ISSUE: ambient
             dr = DictReader(fin)
 
             Dict  # for tools that don't see type: comments.
