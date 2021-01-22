@@ -37,13 +37,9 @@ CREATE TABLE lab_history(
     RAW_UNIT varchar(50),
     RAW_RANGE varchar(50)
 )
-/
-BEGIN
-GATHER_TABLE_STATS('LAB_HISTORY');
-END;
 /                  
 update cdm_status
-set end_time = sysdate, records = (select count(*) from lab_history)
+set end_time = sysdate, records = (select count(*) from lab_history)+1
 where task = 'lab_history'
 /
 
