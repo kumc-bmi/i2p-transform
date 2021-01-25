@@ -53,13 +53,20 @@ naaccrfact.concept_cd from &&i2b2_data_schema.observation_fact naaccrfact
                      where naaccrfact.concept_cd like '%NAACCR%'
                      and naaccrfact.start_date <= sysdate and naaccrfact.start_date >= date '1800-01-01' -- hospital was founded in 1906 
 /
-
-insert into obs_gen(obsgenid,patid,encounterid,obsgen_providerid,obsgen_date,obsgen_code,obsgen_result_text,
-                    obsgen_result_num,obsgen_source,raw_obsgen_code)                     
+CREATE BITMAP INDEX PCORNET_CDM.OBSGEN_NAACCR_ENC ON PCORNET_CDM.OBSGEN_NAACCR(ENCOUNTER_NUM ASC)
+/
+BEGIN
+PMN_DROPSQL('DROP TABLE obs_gen_temp');
+END;
+/
+create table obs_gen_temp
+nologging parallel
+as
 select
 obs_gen_seq.nextval obsgenid,
 obs.patient_num patid,
-case when obs.encounter_num not in (select  encounterid from pcornet_cdm.encounter) then NULL else obs.encounter_num end encounterid,
+-- case when obs.encounter_num not in (select  encounterid from pcornet_cdm.encounter) then NULL else obs.encounter_num end encounterid,
+COALESCE (encounter_num, NULL) encounterid,
 case when obs.provider_id = '@' then NULL else obs.provider_id end obsgen_providerid,
 obs.start_date obsgen_date,
 lc.loinc_num obsgen_code,
@@ -69,6 +76,12 @@ obs.nval_num obsgen_result_num,
 obs.concept_cd raw_obsgen_code
 from pcornet_cdm.obsgen_naaccr obs
 left join pcornet_cdm.loinc_naaccr lc on obs.code_value =lc.code_value
+left join pcornet_cdm.encounter ec on obs.encounter_num = ec.encounterid
+/
+insert into obs_gen(obsgenid,patid,encounterid,obsgen_providerid,obsgen_date,obsgen_code,obsgen_result_text,
+                    obsgen_result_num,obsgen_source,raw_obsgen_code)                     
+select *
+from obs_gen_temp
 /
 create index obs_gen_idx on obs_gen(PATID, ENCOUNTERID)
 /
