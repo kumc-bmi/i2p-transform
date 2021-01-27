@@ -77,6 +77,7 @@ obs.concept_cd raw_obsgen_code
 from pcornet_cdm.obsgen_naaccr obs
 left join pcornet_cdm.loinc_naaccr lc on obs.code_value =lc.code_value
 left join pcornet_cdm.encounter ec on obs.encounter_num = ec.encounterid
+where ec.encounterid is not null;
 /
 insert into obs_gen(obsgenid,patid,encounterid,obsgen_providerid,obsgen_date,obsgen_code,obsgen_result_text,
                     obsgen_result_num,obsgen_source,raw_obsgen_code)                     
