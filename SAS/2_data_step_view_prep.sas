@@ -385,6 +385,15 @@ data sasdata.LDS_ADDRESS_HISTORY / view=sasdata.LDS_ADDRESS_HISTORY
 
 run;
 
+
+***************************************************************;
+* Create data step view for LAB_HISTORY
+***************************************************************;
+data sasdata.LAB_HISTORY / view=sasdata.LAB_HISTORY;
+	set oracdata.LAB_HISTORY;
+run;
+
+
 ***************************************************************;
 * Create data step view for IMMUNIZATION
 ***************************************************************;
