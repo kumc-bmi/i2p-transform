@@ -302,11 +302,11 @@ data sasdata.OBS_CLIN / view=sasdata.OBS_CLIN;
     OBSCLIN_STOP_DATE = datepart(OBSCLIN_STOP_DATE);
     format OBSCLIN_STOP_DATE mmddyy10.;
     
-    OBSCLIN_START TIME = input(_OBSCLIN_START_TIME, hhmmss.);
+    OBSCLIN_START_TIME = input(_OBSCLIN_START_TIME, hhmmss.);
 	format OBSCLIN_START_TIME hhmm.;
 	drop _OBSCLIN_START_TIME;
 
-    OBSCLIN_STOP TIME = input(_OBSCLIN_STOP_TIME, hhmmss.);
+    OBSCLIN_STOP_TIME = input(_OBSCLIN_STOP_TIME, hhmmss.);
 	format OBSCLIN_STOP_TIME hhmm.;
 	drop _OBSCLIN_STOP_TIME;
 
