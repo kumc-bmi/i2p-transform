@@ -44,10 +44,11 @@ begin
   select lab_history_seq.nextval into :new.LABHISTORYID from dual;
 end;
 /
-                  
+
 update cdm_status
 set end_time = sysdate, records = (select count(*) from lab_history)
 where task = 'lab_history'
 /
-select records + 1 from cdm_status where task = 'lab_history'
+select records + 1 from cdm_status 
+where task = 'lab_history' and records is not NULL
 /
