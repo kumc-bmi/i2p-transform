@@ -1,4 +1,3 @@
-alter session set current_schema=pcornet_cdm;
 insert into cdm_status (task, start_time) select 'lab_history', sysdate from dual
 /
 
