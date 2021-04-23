@@ -43,7 +43,9 @@ BEGIN
 PMN_DROPSQL('drop table pcornet_cdm.obsgen_naaccr');
 END;
 /
-create table pcornet_cdm.obsgen_naaccr as
+create table pcornet_cdm.obsgen_naaccr
+nologging parallel
+as
 select naaccrfact.patient_num, naaccrfact.encounter_num,naaccrfact.provider_id,
 naaccrfact.start_date,naaccrfact.tval_char,naaccrfact.nval_num,
 substr(naaccrfact.concept_cd, instr(naaccrfact.concept_cd, '|') + 1,
@@ -52,6 +54,13 @@ naaccrfact.concept_cd from &&i2b2_data_schema.observation_fact naaccrfact
                      join pcornet_cdm.demographic dem on naaccrfact.patient_num=dem.patid
                      where naaccrfact.concept_cd like '%NAACCR%'
                      and naaccrfact.start_date <= sysdate and naaccrfact.start_date >= date '1800-01-01' -- hospital was founded in 1906 
+/
+
+alter table obs_gen nologging
+/
+CREATE BITMAP INDEX PCORNET_CDM.IX_OBSGEN_NAACCR_CD ON PCORNET_CDM.OBSGEN_NAACCR (CODE_VALUE ASC) parallel nologging
+/
+CREATE BITMAP INDEX PCORNET_CDM.IX_LOINC_NAACCR_CD ON PCORNET_CDM.LOINC_NAACCR (CODE_VALUE ASC) parallel nologging
 /
 
 insert /*+ APPEND */  into obs_gen(obsgenid,patid,encounterid,obsgen_providerid,obsgen_start_date,obsgen_code,obsgen_result_text,
