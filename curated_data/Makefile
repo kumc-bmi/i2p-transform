@@ -1,4 +1,4 @@
-.PHONY: stage-state_code
+.PHONY: stage_state_code
 
 stage_state_code:
 	sqlplus "${USERNAME}"/"${PASSWORD}"@"${SID}" @state_code_ddl.sql
