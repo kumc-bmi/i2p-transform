@@ -18,12 +18,15 @@ CREATE TABLE lds_address_history (
 	"ADDRESS_PREFERRED" VARCHAR2(2 BYTE) NOT NULL ENABLE, 
 	"ADDRESS_CITY" VARCHAR2(50 BYTE), -- there some null city
 	"ADDRESS_STATE" VARCHAR2(2 BYTE), -- there some null state
-	"ADDRESS_ZIP5" VARCHAR2(5 BYTE) , 
-	"ADDRESS_ZIP9" VARCHAR2(9 BYTE), 
-	"ADDRESS_PERIOD_START" DATE,
+	"ADDRESS_ZIP5" VARCHAR2(5 BYTE),  -- there some null zip5
+	"ADDRESS_ZIP9" VARCHAR2(9 BYTE),  -- there some null zip9
+	"ADDRESS_PERIOD_START" DATE NOT NULL ENABLE,
     "ADDRESS_PERIOD_END" DATE
    );
-/QL('DROP sequence  lds_address_history_seq');
+/
+
+BEGIN
+PMN_DROPQL('DROP sequence  lds_address_history_seq');
 END;
 /
 
