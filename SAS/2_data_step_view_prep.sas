@@ -14,11 +14,7 @@ ODS HTML;
 ***************************************************************;
 * Include configurable SAS libraries
 ***************************************************************;
-%let fpath=%sysget(SAS_EXECFILEPATH);
-%let fname=%sysget(SAS_EXECFILENAME);
-%let path= %sysfunc(tranwrd(&fpath,&fname,''));
-%put &path;
-%include '&path/1_configuration.sas';
+%include './1_configuration.sas';
 
 %include 'FILE_TO_PATH/dsv';
 
