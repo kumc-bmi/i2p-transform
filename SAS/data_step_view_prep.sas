@@ -10,11 +10,8 @@
 ODS HTML CLOSE;
 ODS HTML;
 
-
-***************************************************************;
-* Include configurable SAS libraries
-***************************************************************;
-%include './1_configuration.sas';
+* bring in the database configuration.  see readme if missing. ;
+%include './config.sas';
 
 ***************************************************************;
 * Create data step view for DEMOGRAPHIC
