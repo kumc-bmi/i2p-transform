@@ -1,6 +1,6 @@
 # Usage
  
-Before running `data_step_view_prep.sas`, a file or link needs to be established for database configuration:
+Before running `prep_data_views.sas`, a file or link needs to be established for database configuration:
 
 For postgres:
 
@@ -27,5 +27,5 @@ If using postgres, the following are fetched from environment variables:
 Then to run the data view prep task:
 
 ```
-sas data_step_view_inspect.sas
+sas prep_data_views.sas
 ```
