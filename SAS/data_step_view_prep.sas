@@ -3,13 +3,6 @@
 * providing the required data type transformations where needed. 
 *******************************************************************************/
 
-
-***************************************************************;
-* Clear SAS result buffer
-***************************************************************;
-ODS HTML CLOSE;
-ODS HTML;
-
 * bring in the database configuration.  see readme if missing. ;
 %include './config.sas';
 
