@@ -297,7 +297,7 @@ run;
 data sasdata.OBS_GEN / view=sasdata.OBS_GEN;
 	set oracdata.OBS_GEN(
 	    rename = (
-	        OBSGEN_TIME = _OBSGEN_TIME
+	        OBSGEN_START_TIME = _OBSGEN_TIME
 	    )
 	)
 	;
