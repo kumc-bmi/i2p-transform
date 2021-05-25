@@ -84,7 +84,7 @@ select
             else null
       END ADDRESS_ZIP9
     , download_date ADDRESS_PERIOD_START 
-    , null ADDRESS_PERIOD_START
+    , null ADDRESS_PERIOD_END
         
 from NIGHTHERONDATA.patient_dimension pdim
 left join pcornet_cdm.state_code scode 
