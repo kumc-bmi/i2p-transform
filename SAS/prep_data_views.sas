@@ -273,7 +273,7 @@ run;
 data sasdata.OBS_CLIN / view=sasdata.OBS_CLIN;
 	set oracdata.OBS_CLIN(
 	    rename = (
-	        OBSCLIN_TIME = _OBSCLIN_TIME
+	        OBSCLIN_START_TIME = _OBSCLIN_TIME
 	    )
 	)
 	;
