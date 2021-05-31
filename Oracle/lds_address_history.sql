@@ -1,4 +1,3 @@
-alter session set current_schema = pcornet_cdm;
 /** immunization - create and populate the immunization table.
 */
 insert into cdm_status (task, start_time) select 'lds_address_history', sysdate from dual
@@ -26,7 +25,7 @@ CREATE TABLE lds_address_history (
 /
 
 BEGIN
-PMN_DROPQL('DROP sequence  lds_address_history_seq');
+PMN_DROPSQL('DROP sequence  lds_address_history_seq');
 END;
 /
 
