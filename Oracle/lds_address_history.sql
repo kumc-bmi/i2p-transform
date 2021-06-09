@@ -21,7 +21,7 @@ CREATE TABLE lds_address_history (
    )
 /
 BEGIN
-PMN_DROPQL('DROP sequence  lds_address_history_seq');
+PMN_DROPSQL('DROP sequence  lds_address_history_seq');
 END;
 /
 create sequence  lds_address_history_seq
