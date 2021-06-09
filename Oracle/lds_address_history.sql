@@ -2,36 +2,30 @@
 */
 insert into cdm_status (task, start_time) select 'lds_address_history', sysdate from dual
 /
-
-
 BEGIN
 PMN_DROPSQL('DROP TABLE lds_address_history');
 END;
 /
-
 CREATE TABLE lds_address_history ( 
-    "ADDRESSID" VARCHAR2(20 BYTE) NOT NULL ENABLE, 
-	"PATID" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
-	"ADDRESS_USE" VARCHAR2(2 BYTE) NOT NULL ENABLE, 
-	"ADDRESS_TYPE" VARCHAR2(2 BYTE) NOT NULL ENABLE, 
-	"ADDRESS_PREFERRED" VARCHAR2(2 BYTE) NOT NULL ENABLE, 
+    "ADDRESSID" VARCHAR2(20 BYTE) NOT NULL, 
+	"PATID" VARCHAR2(50 BYTE) NOT NULL, 
+	"ADDRESS_USE" VARCHAR2(2 BYTE) NOT NULL, 
+	"ADDRESS_TYPE" VARCHAR2(2 BYTE) NOT NULL, 
+	"ADDRESS_PREFERRED" VARCHAR2(2 BYTE) NOT NULL, 
 	"ADDRESS_CITY" VARCHAR2(50 BYTE), -- there some null city
 	"ADDRESS_STATE" VARCHAR2(2 BYTE), -- there some null state
 	"ADDRESS_ZIP5" VARCHAR2(5 BYTE),  -- there some null zip5
 	"ADDRESS_ZIP9" VARCHAR2(9 BYTE),  -- there some null zip9
-	"ADDRESS_PERIOD_START" DATE NOT NULL ENABLE,
+	"ADDRESS_PERIOD_START" DATE NOT NULL,
     "ADDRESS_PERIOD_END" DATE
    );
 /
-
 BEGIN
-PMN_DROPSQL('DROP sequence  lds_address_history_seq');
+PMN_DROPQL('DROP sequence  lds_address_history_seq');
 END;
 /
-
 create sequence  lds_address_history_seq
 /
-
 create or replace trigger lds_address_history_trg
 before insert on lds_address_history
 for each row
@@ -39,7 +33,6 @@ begin
   select lds_address_history_seq.nextval into :new.ADDRESSID from dual;
 end;
 /
-
 insert /*+ APPEND */ into lds_address_history(
      PATID
 	,ADDRESS_USE
@@ -89,10 +82,8 @@ from NIGHTHERONDATA.patient_dimension pdim
 left join pcornet_cdm.state_code scode 
     on upper(scode.state) = upper(pdim.state_cd)
 /
-
 commit
 /
-
 update cdm_status
 set end_time = sysdate, records = (select count(*) from lds_address_history)
 where task = 'lds_address_history'
