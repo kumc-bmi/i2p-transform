@@ -87,5 +87,4 @@ commit
 update cdm_status
 set end_time = sysdate, records = (select count(*) from lds_address_history)
 where task = 'lds_address_history'
-;
 /
