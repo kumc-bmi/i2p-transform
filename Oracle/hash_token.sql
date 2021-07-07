@@ -7,16 +7,18 @@ PMN_DROPSQL('DROP TABLE hash_token');
 END;
 /
 
+/*
+  pcornet CDM 5.1 spec:
+  https://pcornet.org/wp-content/uploads/2019/09/PCORnet-Common-Data-Model-v51-2019_09_12.pdf
+*/
 create table HASH_TOKEN (
 PATID varchar(50) NOT NULL,
 TOKEN_01 varchar(50),
 TOKEN_02 varchar(50),
+TOKEN_03 varchar(50),
+TOKEN_04 varchar(50),
 TOKEN_05 varchar(50),
-TOKEN_12 varchar(50),
-TOKEN_17 varchar(50),
-TOKEN_21 varchar(50),
-TOKEN_22 varchar(50),
-TOKEN_23 varchar(50),
+TOKEN_16 varchar(50),
 CONSTRAINT pk_hash_token_pat PRIMARY KEY (patid),
 CONSTRAINT fk_hash_dem_patid
     FOREIGN KEY (patid)
